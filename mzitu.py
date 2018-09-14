@@ -3,6 +3,7 @@ import os
 import time
 import threading
 from multiprocessing import Pool, cpu_count
+from PIL import Image
 
 import requests
 from bs4 import BeautifulSoup
@@ -18,7 +19,6 @@ proxies = {"http": "http://120.92.74.189:3128"}
 
 # 下载图片保存路径
 DIR_PATH = r"./mzitu"
-
 
 
 def get_urls():
@@ -86,7 +86,18 @@ def save_pic(pic_src, pic_cnt):
         with open(img_name, 'ab') as f:
             f.write(img.content)
             print(img_name)
+            im = Image.open(img_name)
+            # 图片的宽度和高度
+            img_size = im.size
+            print("图片宽度和高度分别是{}".format(img_size))
+            w = img_size[0]
+            h = img_size[1] - 20
+            x = 0
+            y = 0
+            region = im.crop((x, y, w, h))
+            region.save(img_name)
     except Exception as e:
+        print("截图异常=====>")
         print(e)
 
 
