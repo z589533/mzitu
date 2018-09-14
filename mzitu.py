@@ -13,9 +13,12 @@ HEADERS = {
                   '(KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',
     'Referer': 'http://www.mzitu.com'
 }
+# http://www.xicidaili.com/ 代理服务器
+proxies = {"http": "http://120.92.74.189:3128"}
 
 # 下载图片保存路径
-DIR_PATH = r"D:\mzitu"
+DIR_PATH = r"./mzitu"
+
 
 
 def get_urls():
@@ -29,17 +32,18 @@ def get_urls():
     for page_url in page_urls:
         try:
             bs = BeautifulSoup(
-                requests.get(page_url, headers=HEADERS, timeout=10).text,
+                requests.get(page_url, headers=HEADERS, timeout=60, proxies=proxies).text,
                 'lxml').find('ul', id="pins")
-            result = re.findall(r"(?<=href=)\S+", str(bs))      # 匹配所有 urls
+            result = re.findall(r"(?<=href=)\S+", str(bs))  # 匹配所有 urls
             img_url = [url.replace('"', "") for url in result]
             img_urls.extend(img_url)
         except Exception as e:
+            print("http请求异常================>")
             print(e)
-    return set(img_urls)    # 利用 set 去重 urls
+    return set(img_urls)  # 利用 set 去重 urls
 
 
-lock = threading.Lock()     # 全局资源锁
+lock = threading.Lock()  # 全局资源锁
 
 
 def urls_crawler(url):
@@ -47,7 +51,7 @@ def urls_crawler(url):
     爬虫入口，主要爬取操作
     """
     try:
-        r = requests.get(url, headers=HEADERS, timeout=10).text
+        r = requests.get(url, headers=HEADERS, timeout=60, proxies=proxies).text
         folder_name = BeautifulSoup(r, 'lxml').find(
             'div', class_="main-image").find('img')['alt'].replace("?", " ")
         with lock:
@@ -60,7 +64,7 @@ def urls_crawler(url):
 
                 for _, page_url in enumerate(page_urls):
                     time.sleep(0.25)
-                    result = requests.get(page_url, headers=HEADERS, timeout=10).text
+                    result = requests.get(page_url, headers=HEADERS, timeout=60, proxies=proxies).text
                     img_url = BeautifulSoup(result, 'lxml').find(
                         'div', class_="main-image").find(
                         'p').find('a').find('img')['src']
@@ -77,7 +81,7 @@ def save_pic(pic_src, pic_cnt):
     """
     try:
         time.sleep(0.10)
-        img = requests.get(pic_src, headers=HEADERS, timeout=10)
+        img = requests.get(pic_src, headers=HEADERS, timeout=60, proxies=proxies)
         img_name = "pic_cnt_{}.jpg".format(pic_cnt + 1)
         with open(img_name, 'ab') as f:
             f.write(img.content)
@@ -109,14 +113,14 @@ def delete_empty_dir(save_dir):
     if os.path.exists(save_dir):
         if os.path.isdir(save_dir):
             for d in os.listdir(save_dir):
-                path = os.path.join(save_dir, d)     # 组装下一级地址
+                path = os.path.join(save_dir, d)  # 组装下一级地址
                 if os.path.isdir(path):
-                    delete_empty_dir(path)      # 递归删除空文件夹
+                    delete_empty_dir(path)  # 递归删除空文件夹
         if not os.listdir(save_dir):
             os.rmdir(save_dir)
             print("remove the empty dir: {}".format(save_dir))
     else:
-        print("Please start your performance!")     # 请开始你的表演
+        print("Please start your performance!")  # 请开始你的表演
 
 
 if __name__ == "__main__":
