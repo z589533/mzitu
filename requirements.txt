@@ -4,3 +4,4 @@ jieba
 matplotlib
 BeautifulSoup4
 lxml
+pillow

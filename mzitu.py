@@ -2,8 +2,11 @@ import re
 import os
 import time
 import threading
+import hashlib
+import json
 from multiprocessing import Pool, cpu_count
-from PIL import Image
+
+from PIL import Image, ImageDraw, ImageFont
 
 import requests
 from bs4 import BeautifulSoup
@@ -15,11 +18,19 @@ HEADERS = {
     'Referer': 'http://www.mzitu.com'
 }
 # http://www.xicidaili.com/ 代理服务器
-proxies = {"http": "http://120.92.74.189:3128"}
-
+# proxies = {"http": "http://120.92.74.189:3128"}
+proxies = {}
 # 下载图片保存路径
-DIR_PATH = r"./mzitu"
+DIR_PATH = r"C:\love\mzitu\jpg"
 
+# 指定要使用的字体和大小；/Library/Fonts/是macOS字体目录；Linux的字体目录是/usr/share/fonts/
+font = ImageFont.truetype(r".\font\msyh.ttf", 21)
+
+# 保存路径
+reques_url = r"http://127.0.0.1:9999//lovehot/api/v1/rest/postImageData"
+
+
+# DIR_PATH = r"D:\mzitu"
 
 def get_urls():
     """
@@ -55,7 +66,10 @@ def urls_crawler(url):
         folder_name = BeautifulSoup(r, 'lxml').find(
             'div', class_="main-image").find('img')['alt'].replace("?", " ")
         with lock:
-            if make_dir(folder_name):
+            # folder_name 套图名称
+            m = hashlib.md5(folder_name.encode(encoding='gb2312'))
+            filename = m.hexdigest()[8:-8]
+            if make_dir(filename):
                 # 套图里图片张数
                 max_count = BeautifulSoup(r, 'lxml').find(
                     'div', class_='pagenavi').find_all('span')[-2].get_text()
@@ -71,6 +85,14 @@ def urls_crawler(url):
                     img_urls.append(img_url)
                 for cnt, url in enumerate(img_urls):
                     save_pic(url, cnt)
+
+                print("发送请求保存图片一共X张图片====>" + img_urls.count())
+                aItem = {}
+                aItem["filename"] = filename
+                aItem["title"] = folder_name
+                aItem["imgsize"] = img_urls.count()
+                param = json.dumps(aItem, ensure_ascii=False)
+                requests.post(reques_url, param, timeout=60).text
     except Exception as e:
         print(e)
 
@@ -81,23 +103,40 @@ def save_pic(pic_src, pic_cnt):
     """
     try:
         time.sleep(0.10)
+        print("图片地址===" + pic_src)
         img = requests.get(pic_src, headers=HEADERS, timeout=60, proxies=proxies)
-        img_name = "pic_cnt_{}.jpg".format(pic_cnt + 1)
+        img_name = "love_img_{}.jpg".format(pic_cnt + 1)
         with open(img_name, 'ab') as f:
             f.write(img.content)
-            print(img_name)
+            print("图片文件名========>" + img_name)
             im = Image.open(img_name)
             # 图片的宽度和高度
             img_size = im.size
-            print("图片宽度和高度分别是{}".format(img_size))
+            # print("图片宽度和高度分别是{}".format(img_size))
             w = img_size[0]
-            h = img_size[1] - 20
+            h = img_size[1] - 22
             x = 0
             y = 0
             region = im.crop((x, y, w, h))
             region.save(img_name)
+            add_text_to_image(region, img_name, 'h.love5868.com')
     except Exception as e:
         print("截图异常=====>")
+        print(e)
+
+
+# image: 图片  text：要添加的文本 font：字体
+def add_text_to_image(image, img_name, text, font=font):
+    try:
+        draw = ImageDraw.Draw(image)
+        text_size_x, text_size_y = draw.textsize(text, font=font)
+        # 设置文本文字位置
+        text_xy = (image.size[0] - text_size_x - 10, image.size[1] - text_size_y - 20)
+        draw.text(text_xy, text, (255, 0, 0), font=font)  # 设置文字位置/内容/颜色/字体
+        draw = ImageDraw.Draw(image)
+        image.save(img_name)
+    except Exception as e:
+        print("水印异常=====>")
         print(e)
 
 
