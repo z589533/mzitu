@@ -3,7 +3,8 @@ import os
 import time
 import threading
 import hashlib
-import json
+
+from urllib.parse import quote
 from multiprocessing import Pool, cpu_count
 
 from PIL import Image, ImageDraw, ImageFont
@@ -18,16 +19,18 @@ HEADERS = {
     'Referer': 'http://www.mzitu.com'
 }
 # http://www.xicidaili.com/ 代理服务器
-# proxies = {"http": "http://120.92.74.189:3128"}
-proxies = {}
-# 下载图片保存路径
-DIR_PATH = r"C:\love\mzitu\jpg"
+proxies = {"http": "http://120.92.74.189:3128"}
+# proxies = {}
+# test下载图片保存路径
+# DIR_PATH = r"C:\love\mzitu\jpg"
+
+DIR_PATH = r"/application/image"
 
 # 指定要使用的字体和大小；/Library/Fonts/是macOS字体目录；Linux的字体目录是/usr/share/fonts/
-font = ImageFont.truetype(r".\font\msyh.ttf", 21)
+font = ImageFont.truetype(r"./font/msyh.ttf", 21)
 
 # 保存路径
-reques_url = r"http://127.0.0.1:9999//lovehot/api/v1/rest/postImageData"
+reques_url = r"http://127.0.0.1:9999/lovehot/api/v1/rest/postImageData"
 
 
 # DIR_PATH = r"D:\mzitu"
@@ -65,9 +68,14 @@ def urls_crawler(url):
         r = requests.get(url, headers=HEADERS, timeout=60, proxies=proxies).text
         folder_name = BeautifulSoup(r, 'lxml').find(
             'div', class_="main-image").find('img')['alt'].replace("?", " ")
+
+        type_name = BeautifulSoup(r, 'lxml').find(
+            'div', class_="main-meta").find('a').get_text()
+
+        print(type_name)
         with lock:
             # folder_name 套图名称
-            m = hashlib.md5(folder_name.encode(encoding='gb2312'))
+            m = hashlib.md5(folder_name.encode(encoding='utf-8'))
             filename = m.hexdigest()[8:-8]
             if make_dir(filename):
                 # 套图里图片张数
@@ -86,13 +94,14 @@ def urls_crawler(url):
                 for cnt, url in enumerate(img_urls):
                     save_pic(url, cnt)
 
-                print("发送请求保存图片一共X张图片====>" + img_urls.count())
+                print(len(img_urls))
                 aItem = {}
                 aItem["filename"] = filename
-                aItem["title"] = folder_name
-                aItem["imgsize"] = img_urls.count()
-                param = json.dumps(aItem, ensure_ascii=False)
-                requests.post(reques_url, param, timeout=60).text
+                aItem["source"] = "mzitu"
+                aItem["title"] = quote(folder_name, 'utf-8')
+                aItem["typename"] = type_name
+                aItem["imgsize"] = len(img_urls)
+                requests.post(reques_url, aItem, timeout=60).text
     except Exception as e:
         print(e)
 
